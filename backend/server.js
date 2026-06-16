@@ -7,7 +7,9 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 
 const app = express();
-const upload = multer({ dest: path.join(__dirname, 'uploads') });
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+const upload = multer({ dest: uploadDir });
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -23,10 +25,15 @@ function escapeHtml(value = '') {
 }
 
 function cleanText(value = '') {
-  return String(value).replace(/\s+/g, ' ').trim();
+  return String(value).replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-function cellContent(cell) {
+function getSpan(cell, attr) {
+  const n = Number.parseInt(cell.getAttribute(attr), 10);
+  return Number.isFinite(n) && n > 1 ? n : 1;
+}
+
+function getCellHtml(cell) {
   const lists = cell.querySelectorAll('ul, ol');
   if (lists.length) {
     const items = [];
@@ -41,16 +48,11 @@ function cellContent(cell) {
   return escapeHtml(cleanText(cell.textContent));
 }
 
-function getSpan(cell, attribute) {
-  const raw = Number.parseInt(cell.getAttribute(attribute), 10);
-  return Number.isFinite(raw) && raw > 1 ? raw : 1;
-}
-
-function columnCount(rows) {
+function getColumnCount(rows) {
   let max = 0;
   rows.forEach((row) => {
     let count = 0;
-    row.querySelectorAll('th, td').forEach((cell) => {
+    row.querySelectorAll('th,td').forEach((cell) => {
       count += getSpan(cell, 'colspan');
     });
     max = Math.max(max, count);
@@ -58,93 +60,117 @@ function columnCount(rows) {
   return Math.max(max, 1);
 }
 
-function isSourceOrNoteRow(row) {
-  const cells = Array.from(row.querySelectorAll('th, td'));
+function shouldSkipTable(table) {
+  const rows = Array.from(table.querySelectorAll('tr'));
+  const cells = Array.from(table.querySelectorAll('th,td'));
+  const text = cleanText(table.textContent);
+
+  if (!rows.length || !cells.length) return true;
+
+  // Skip DOCX blocks that are not real data tables. Mammoth can convert designed callout/code
+  // blocks into a one-cell table; those showed up as escaped HTML in the UI.
+  if (cells.length === 1 && /^<\/?(div|section|article|aside|p|h[1-6]|span|br)\b/i.test(text)) return true;
+  if (/Callout--root|Callout--container|COPY HERE/i.test(text)) return true;
+
+  // A real table should normally have at least two rows or at least two columns.
+  const maxColumns = getColumnCount(rows);
+  if (rows.length === 1 && maxColumns === 1) return true;
+
+  return false;
+}
+
+function isSourceOrNoteRow(cells) {
   if (!cells.length) return false;
   const text = cleanText(cells.map((cell) => cell.textContent).join(' '));
-  return /^(source|note|notes)\s*:/i.test(text);
+  return /^(source|note|notes|footnote)\s*:/i.test(text);
 }
 
-function isTitleRow(row, maxColumns, rowIndex) {
-  if (rowIndex > 1) return false;
-  const cells = Array.from(row.querySelectorAll('th, td'));
-  if (cells.length !== 1) return false;
-  const span = getSpan(cells[0], 'colspan');
-  return span >= maxColumns || cells[0].tagName.toLowerCase() === 'th';
+function isTitleRow(cells, maxColumns, rowIndex) {
+  if (rowIndex > 1 || cells.length !== 1) return false;
+  const cell = cells[0];
+  return cell.tagName.toLowerCase() === 'th' || getSpan(cell, 'colspan') >= maxColumns;
 }
 
-function normalizeTable(tableHTML, tableNumber) {
-  const dom = new JSDOM(tableHTML);
-  const document = dom.window.document;
-  const table = document.querySelector('table');
-  if (!table) return '';
+function normalizeTable(table, tableNumber) {
+  if (shouldSkipTable(table)) return null;
 
   const rows = Array.from(table.querySelectorAll('tr'));
-  const maxColumns = columnCount(rows);
-
-  let html = '<div class="table-card">';
-  html += `<div class="table-card__header"><h2>Table ${tableNumber}</h2><button type="button" class="download-btn" data-table-index="${tableNumber - 1}">Download</button></div>`;
-  html += '<div class="table-scroll"><table class="pro-table">';
+  const maxColumns = getColumnCount(rows);
+  let body = '';
 
   rows.forEach((row, rowIndex) => {
-    const originalCells = Array.from(row.querySelectorAll('th, td'));
-    if (!originalCells.length) return;
+    const cells = Array.from(row.querySelectorAll('th,td'));
+    if (!cells.length) return;
 
-    if (isSourceOrNoteRow(row)) {
-      const sourceText = cellContent({
-        textContent: originalCells.map((cell) => cell.textContent).join(' '),
-        querySelectorAll: () => [],
-      });
-      html += `<tr class="source-row"><td colspan="${maxColumns}">${sourceText}</td></tr>`;
+    if (isSourceOrNoteRow(cells)) {
+      const text = escapeHtml(cleanText(cells.map((cell) => cell.textContent).join(' ')));
+      body += `<tr class="source-row"><td colspan="${maxColumns}">${text}</td></tr>`;
       return;
     }
 
-    const titleRow = isTitleRow(row, maxColumns, rowIndex);
-    html += titleRow ? '<tr class="title-row">' : '<tr>';
+    const titleRow = isTitleRow(cells, maxColumns, rowIndex);
+    body += titleRow ? '<tr class="title-row">' : '<tr>';
 
-    originalCells.forEach((cell) => {
-      const tagName = cell.tagName.toLowerCase() === 'th' || rowIndex <= 1 || titleRow ? 'th' : 'td';
-      const colspan = getSpan(cell, 'colspan');
-      const rowspan = titleRow ? 1 : getSpan(cell, 'rowspan');
+    cells.forEach((cell) => {
+      const tag = titleRow || cell.tagName.toLowerCase() === 'th' || rowIndex === 0 ? 'th' : 'td';
       const attrs = [];
+      const colspan = titleRow ? maxColumns : getSpan(cell, 'colspan');
+      const rowspan = titleRow ? 1 : getSpan(cell, 'rowspan');
+
       if (colspan > 1) attrs.push(`colspan="${colspan}"`);
       if (rowspan > 1) attrs.push(`rowspan="${rowspan}"`);
-      html += `<${tagName}${attrs.length ? ' ' + attrs.join(' ') : ''}>${cellContent(cell)}</${tagName}>`;
+
+      body += `<${tag}${attrs.length ? ' ' + attrs.join(' ') : ''}>${getCellHtml(cell)}</${tag}>`;
     });
 
-    html += '</tr>';
+    body += '</tr>';
   });
 
-  html += '</table></div></div>';
-  return html;
+  if (!body) return null;
+
+  return `
+<section class="table-card" data-table-no="${tableNumber}">
+  <div class="table-card__header">
+    <h2>Table ${tableNumber}</h2>
+    <button type="button" class="download-btn" data-table-index="${tableNumber - 1}">Download</button>
+  </div>
+  <div class="table-scroll">
+    <table class="pro-table">${body}</table>
+  </div>
+</section>`;
 }
 
 function extractTables(html) {
   const dom = new JSDOM(html);
   const tables = Array.from(dom.window.document.querySelectorAll('table'));
-  return tables.map((table, index) => normalizeTable(table.outerHTML, index + 1)).filter(Boolean);
+  const output = [];
+
+  tables.forEach((table) => {
+    const normalized = normalizeTable(table, output.length + 1);
+    if (normalized) output.push(normalized);
+  });
+
+  return output;
 }
 
 app.post('/upload', upload.array('files'), async (req, res) => {
-  const uploadedFiles = req.files || [];
-  if (!uploadedFiles.length) {
-    return res.status(400).json({ error: 'Please upload at least one DOCX file.' });
-  }
+  const files = req.files || [];
+  if (!files.length) return res.status(400).json({ error: 'Please choose at least one DOCX file.' });
 
   try {
-    const allTables = [];
+    const tables = [];
 
-    for (const file of uploadedFiles) {
+    for (const file of files) {
       const result = await mammoth.convertToHtml({ path: file.path });
-      allTables.push(...extractTables(result.value));
+      tables.push(...extractTables(result.value));
       fs.unlink(file.path, () => {});
     }
 
-    return res.json({ tables: allTables });
+    return res.json({ tables });
   } catch (error) {
-    uploadedFiles.forEach((file) => fs.unlink(file.path, () => {}));
+    files.forEach((file) => fs.unlink(file.path, () => {}));
     console.error(error);
-    return res.status(500).json({ error: 'DOCX conversion failed. Please check the file and try again.' });
+    return res.status(500).json({ error: 'DOCX conversion failed. Please upload a valid DOCX file.' });
   }
 });
 
