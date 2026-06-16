@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Table Converter Pro</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --text: #172033;
+      --muted: #64748b;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --border: #d8e0ec;
+      --shadow: 0 18px 45px rgba(15, 23, 42, 0.10);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top left, #dbeafe 0, transparent 34%), var(--bg);
+      min-height: 100vh;
+    }
+
+    .app-shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 42px 0; }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 24px;
+      align-items: stretch;
+      margin-bottom: 26px;
+    }
+
+    .panel {
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid rgba(216, 224, 236, 0.9);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .intro { padding: 34px; }
+    .badge { display: inline-flex; gap: 8px; align-items: center; padding: 8px 12px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-weight: 700; font-size: 13px; }
+    h1 { margin: 18px 0 10px; font-size: clamp(32px, 5vw, 54px); line-height: 1.02; letter-spacing: -0.05em; }
+    .intro p { margin: 0; color: var(--muted); font-size: 16px; line-height: 1.7; }
+
+    .upload-card { padding: 26px; display: flex; flex-direction: column; justify-content: center; gap: 16px; }
+    .drop-zone { border: 2px dashed #a9b8d0; border-radius: 16px; padding: 28px; text-align: center; background: var(--surface-2); transition: 0.18s ease; }
+    .drop-zone.dragover { border-color: var(--primary); background: #eff6ff; transform: translateY(-1px); }
+    .drop-zone strong { display: block; font-size: 18px; margin-bottom: 6px; }
+    .drop-zone span { color: var(--muted); font-size: 14px; }
+    input[type="file"] { display: none; }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+    button, .file-label {
+      appearance: none;
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: 0.18s ease;
+      font-size: 14px;
+    }
+
+    .primary-btn, .file-label, .download-btn { background: var(--primary); color: #fff; }
+    .primary-btn:hover, .file-label:hover, .download-btn:hover { background: var(--primary-dark); transform: translateY(-1px); }
+    .secondary-btn { background: #e8eef8; color: #1e293b; }
+    .secondary-btn:hover { background: #dce6f4; }
+    button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+    .status { min-height: 24px; color: var(--muted); font-weight: 650; }
+    .status.error { color: #dc2626; }
+    .status.success { color: #15803d; }
+
+    .results { display: grid; gap: 24px; }
+    .empty-state { padding: 34px; text-align: center; color: var(--muted); }
+
+    .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    .table-card__header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 20px; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, #ffffff, #f8fafc); }
+    .table-card__header h2 { margin: 0; font-size: 20px; letter-spacing: -0.02em; }
+    .table-scroll { overflow-x: auto; }
+
+    .pro-table { width: 100%; border-collapse: separate; border-spacing: 0; background: #fff; font-size: 15px; }
+    .pro-table th, .pro-table td { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 12px 14px; text-align: left; vertical-align: top; line-height: 1.45; }
+    .pro-table tr > :first-child { border-left: 1px solid var(--border); }
+    .pro-table tr:first-child > * { border-top: 1px solid var(--border); }
+    .pro-table th { background: #f1f5f9; color: #0f172a; font-weight: 800; }
+    .pro-table .title-row th { background: #eaf2ff; font-size: 16px; }
+    .pro-table tr:nth-child(even) td { background: #fbfdff; }
+    .pro-table .source-row td { background: #fff; color: #334155; font-style: normal; font-size: 14px; border-top: 1px solid var(--border); }
+
+    .export-shell { display: none; }
+
+    @media (max-width: 860px) {
+      .hero { grid-template-columns: 1fr; }
+      .app-shell { width: min(100% - 20px, 1180px); padding: 22px 0; }
+      .intro, .upload-card { padding: 22px; }
+      .table-card__header { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <section class="hero">
+      <div class="panel intro">
+        <span class="badge">DOCX Table Converter Pro</span>
+        <h1>Clean tables with correct rowspan and colspan.</h1>
+        <p>Upload DOCX files and export professional HTML tables. Source/Note rows are automatically converted into full-width footer rows, so unwanted rowspan/colspan issues do not break the last row.</p>
+      </div>
+
+      <div class="panel upload-card">
+        <label class="drop-zone" id="dropZone" for="fileInput">
+          <strong>Drop DOCX files here</strong>
+          <span>or click to browse. Multiple files supported.</span>
+        </label>
+        <input type="file" id="fileInput" multiple accept=".docx" />
+        <div class="actions">
+          <label class="file-label" for="fileInput">Choose files</label>
+          <button class="primary-btn" id="uploadBtn" type="button">Upload & Convert</button>
+          <button class="secondary-btn" id="clearBtn" type="button">Clear</button>
+        </div>
+        <div class="status" id="status">No file selected.</div>
+      </div>
+    </section>
+
+    <section id="output" class="results">
+      <div class="panel empty-state">Converted tables will appear here.</div>
+    </section>
+  </main>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const output = document.getElementById('output');
+    const statusBox = document.getElementById('status');
+    const dropZone = document.getElementById('dropZone');
+    let tablesData = [];
+
+    function setStatus(message, type = '') {
+      statusBox.textContent = message;
+      statusBox.className = 'status' + (type ? ' ' + type : '');
+    }
+
+    function selectedFilesText() {
+      const files = Array.from(fileInput.files || []);
+      if (!files.length) return 'No file selected.';
+      return files.map(file => file.name).join(', ');
+    }
+
+    fileInput.addEventListener('change', () => setStatus(selectedFilesText()));
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropZone.addEventListener(eventName, event => {
+        event.preventDefault();
+        dropZone.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, event => {
+        event.preventDefault();
+        dropZone.classList.remove('dragover');
+      });
+    });
+
+    dropZone.addEventListener('drop', event => {
+      fileInput.files = event.dataTransfer.files;
+      setStatus(selectedFilesText());
+    });
+
+    uploadBtn.addEventListener('click', upload);
+    clearBtn.addEventListener('click', () => {
+      fileInput.value = '';
+      tablesData = [];
+      output.innerHTML = '<div class="panel empty-state">Converted tables will appear here.</div>';
+      setStatus('No file selected.');
+    });
+
+    output.addEventListener('click', event => {
+      const button = event.target.closest('.download-btn');
+      if (!button) return;
+      download(Number(button.dataset.tableIndex));
+    });
+
+    async function upload() {
+      const files = Array.from(fileInput.files || []);
+      if (!files.length) {
+        setStatus('Please select at least one DOCX file.', 'error');
+        return;
+      }
+
+      const formData = new FormData();
+      files.forEach(file => formData.append('files', file));
+
+      uploadBtn.disabled = true;
+      setStatus('Converting tables...');
+      output.innerHTML = '<div class="panel empty-state">Processing your document...</div>';
+
+      try {
+        const response = await fetch('/upload', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Upload failed.');
+
+        tablesData = data.tables || [];
+        if (!tablesData.length) {
+          output.innerHTML = '<div class="panel empty-state">No tables found in the uploaded document.</div>';
+          setStatus('No tables found.', 'error');
+          return;
+        }
+
+        output.innerHTML = tablesData.join('');
+        setStatus(`${tablesData.length} table(s) converted successfully.`, 'success');
+      } catch (error) {
+        output.innerHTML = '<div class="panel empty-state">Conversion failed. Please try another DOCX file.</div>';
+        setStatus(error.message, 'error');
+      } finally {
+        uploadBtn.disabled = false;
+      }
+    }
+
+    function download(index) {
+      const table = tablesData[index];
+      if (!table) return;
+
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Table Export</title>
+<style>
+body{font-family:Arial,sans-serif;margin:24px;color:#172033}.table-card{border:1px solid #d8e0ec;border-radius:14px;overflow:hidden}.table-card__header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:#f8fafc;border-bottom:1px solid #d8e0ec}.download-btn{display:none}.table-scroll{overflow-x:auto}.pro-table{width:100%;border-collapse:collapse}.pro-table th,.pro-table td{border:1px solid #d8e0ec;padding:10px 12px;text-align:left;vertical-align:top}.pro-table th{background:#f1f5f9}.pro-table .title-row th{background:#eaf2ff}.source-row td{font-size:14px;color:#334155;background:#fff}
+</style>
+</head>
+<body>${table}</body>
+</html>`;
+
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `table_${index + 1}.html`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+  </script>
+</body>
+</html>
