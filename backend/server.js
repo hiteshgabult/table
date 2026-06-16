@@ -473,7 +473,7 @@ app.get('/', (req, res) => {
   <main class="app-shell">
     <section class="hero">
       <div class="panel intro">
-      <img src="https://www.lendingtree.com/content/uploads/2025/03/LendingTree-Logo.webp" alt="LendingTree Logo" class="aligncenter size-full wp-image-1462639" />
+      <img style="display:block; margin-bottom:10px" width="150" src="https://www.lendingtree.com/content/uploads/2025/03/LendingTree-Logo.webp" alt="LendingTree Logo" class="aligncenter size-full wp-image-1462639" />
         <span class="badge">DOCX Table Converter Pro</span>
         <h1>Generate clean HTML tables.</h1>
         <p>Upload DOCX file, then click Generate Tables. Output table ma paragraph tag nahi aave, bullet list preserve thase, ane table ma only border styling rahe.</p>
