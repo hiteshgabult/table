@@ -305,7 +305,7 @@ app.get('/', (req, res) => {
     }
 
     h1 {
-      margin: 16px 0 10px;
+      margin: 0 0 15px;
       font-size: 42px;
       line-height: 1.05;
       letter-spacing: -0.04em;
@@ -473,9 +473,9 @@ app.get('/', (req, res) => {
   <main class="app-shell">
     <section class="hero">
       <div class="panel intro">
-      <img style="display:block; margin-bottom:10px" width="150" src="https://www.lendingtree.com/content/uploads/2025/03/LendingTree-Logo.webp" alt="LendingTree Logo" class="aligncenter size-full wp-image-1462639" />
-        <span class="badge">Created By : Hitesh Gabu (Sr. Software Engineer)</span>
         <h1>Generate clean HTML tables.</h1>
+        <span class="badge">Created By : Hitesh Gabu (Sr. Software Engineer)</span>
+      
        
       </div>
 
