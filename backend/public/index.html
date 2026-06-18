@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Table Converter Pro</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <section class="hero">
+      <div class="panel intro">
+        <h1>Generate clean HTML tables.</h1>
+        <span class="badge">Created By : Hitesh Gabu (Sr. Software Engineer)</span>
+      </div>
+
+      <div class="panel upload-card">
+        <label class="drop-zone" id="dropZone" for="fileInput">
+          <strong>Drop DOCX files here</strong>
+          <span>or click to browse. Multiple files supported.</span>
+        </label>
+
+        <input type="file" id="fileInput" multiple accept=".docx" />
+
+        <div class="actions">
+          <label class="file-label" for="fileInput">Choose files</label>
+          <button class="primary-btn" id="uploadBtn" type="button">Generate Tables</button>
+          <button class="secondary-btn" id="clearBtn" type="button">Clear</button>
+        </div>
+
+        <div class="status" id="status">No file selected.</div>
+      </div>
+    </section>
+
+    <section id="output" class="results">
+      <div class="panel empty-state">Converted tables will appear here.</div>
+    </section>
+  </main>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
