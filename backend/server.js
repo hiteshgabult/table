@@ -476,7 +476,7 @@ app.get('/', (req, res) => {
       <img style="display:block; margin-bottom:10px" width="150" src="https://www.lendingtree.com/content/uploads/2025/03/LendingTree-Logo.webp" alt="LendingTree Logo" class="aligncenter size-full wp-image-1462639" />
         <span class="badge">Created By : Hitesh Gabu (Sr. Software Engineer)</span>
         <h1>Generate clean HTML tables.</h1>
-        <p>Upload DOCX file, then click Generate Tables. Output table ma paragraph tag nahi aave, bullet list preserve thase, ane table ma only border styling rahe.</p>
+       
       </div>
 
       <div class="panel upload-card">
